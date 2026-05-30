@@ -46,13 +46,6 @@ route  {
 
 
 
-resource "aws_route_table" "pvt_rt" {
-vpc_id = aws_vpc.my_vpc.id
-tags = {
-  Name = "pvt-rt"
-}
-}
-
 
 locals {
   public_subnet_indexes = [0, 2]
@@ -60,7 +53,7 @@ locals {
 
 }
 
-
+#    public route table creation
 resource "aws_route_table_association" "pub_rt_as" {
 count = length(local.public_subnet_indexes)  
 
@@ -70,9 +63,51 @@ route_table_id = aws_route_table.pub_rt.id
 
 
 
+#   private route table creation
+
+resource "aws_route_table" "pvt_rt" {
+vpc_id = aws_vpc.my_vpc.id
+tags = {
+  Name = "pvt-rt"
+}
+
+route {
+  nat_gateway_id = aws_nat_gateway.r_ngtw.id
+  cidr_block = "0.0.0.0/0"
+}
+}
+
+
+# Elastic ip creation
+
+resource "aws_eip" "eip" {
+  domain = "vpc"
+
+  tags = {
+    Name = "elastic-ip"
+  }
+  
+}
+
+# Nat gateway creation
+
+resource "aws_nat_gateway" "r_ngtw" {
+  allocation_id = aws_eip.eip.id
+  subnet_id = aws_subnet.p_sub[0].id
+
+  tags = {
+    Name = "Nat-gateway"
+  }
+  
+}
+
+
+
 resource "aws_route_table_association" "pvt_rt_as" {
 count = length(local.private_subnet_indexes)  
 
 subnet_id = aws_subnet.p_sub[local.private_subnet_indexes[count.index]].id
 route_table_id = aws_route_table.pvt_rt.id
+
+
 }
